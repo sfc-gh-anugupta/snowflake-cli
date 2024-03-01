@@ -6,8 +6,6 @@ from snowflake.cli.app.cli_app import app
 
 
 def main(*args):
-    if len(sys.argv) == 1:
-        sys.argv.append("-h")
     app(*args)
 
 
