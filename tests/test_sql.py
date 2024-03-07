@@ -253,3 +253,19 @@ def test_show_specific_object_multiple_rows(mock_execute_query):
     mock_execute_query.assert_called_once_with(
         r"show objects like 'NAME'", cursor_class=DictCursor
     )
+
+
+@mock.patch("snowflake.cli.plugins.sql.commands.SqlManager._execute_string")
+def test_rendering_of_sql(mock_execute_query, runner):
+    result = runner.invoke(
+        ["sql", "-q", "select %{ aaa }.%{ bbb }", "-D", "aaa=foo", "-D", "bbb=bar"]
+    )
+    assert result.exit_code == 0, result.output
+    mock_execute_query.assert_called_once_with("select foo.bar")
+
+
+@mock.patch("snowflake.cli.plugins.sql.commands.SqlManager._execute_string")
+def test_no_rendering_of_sql_if_no_data(mock_execute_query, runner):
+    result = runner.invoke(["sql", "-q", "select %{ aaa }.%{ bbb }"])
+    assert result.exit_code == 0, result.output
+    mock_execute_query.assert_called_once_with("select %{ aaa }.%{ bbb }")
