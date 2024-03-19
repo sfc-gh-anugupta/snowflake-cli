@@ -79,6 +79,7 @@ def deploy(
     All deployed objects use the same artifact which is deployed only once.
     """
     snowpark = cli_context.project_definition
+    project_root = cli_context.project_root
 
     procedures = snowpark.procedures
     functions = snowpark.functions
@@ -88,7 +89,7 @@ def deploy(
             "No procedures or functions were specified in the project definition."
         )
 
-    build_artifact_path = _get_snowpark_artifact_path(snowpark)
+    build_artifact_path = _get_snowpark_artifact_absolute_path(project_root, snowpark)
 
     if not build_artifact_path.exists():
         raise ClickException(
@@ -304,9 +305,21 @@ def _deploy_single_object(
     }
 
 
-def _get_snowpark_artifact_path(snowpark_definition: Snowpark):
-    source = Path(snowpark_definition.src)
-    artifact_file = Path.cwd() / (source.name + ".zip")
+def _get_snowpark_source_absolute_path(
+    project_root: Path, snowpark_definition: Snowpark
+) -> Path:
+    defined_source_path = Path(snowpark_definition.src)
+    if defined_source_path.is_absolute():
+        return defined_source_path
+    else:
+        return (project_root / defined_source_path).resolve()
+
+
+def _get_snowpark_artifact_absolute_path(
+    project_root: Path, snowpark_definition: Snowpark
+) -> Path:
+    source_path = _get_snowpark_source_absolute_path(project_root, snowpark_definition)
+    artifact_file = project_root / (source_path.name + ".zip")
     return artifact_file
 
 
@@ -323,12 +336,13 @@ def build(
     The archive is built using only the `src` directory specified in the project file.
     """
     snowpark = cli_context.project_definition
-    source = Path(snowpark.src)
-    artifact_file = _get_snowpark_artifact_path(snowpark)
-    log.info("Building package using sources from: %s", source.resolve())
+    project_root = cli_context.project_root
+    absolute_source_path = _get_snowpark_source_absolute_path(project_root, snowpark)
+    artifact_file = _get_snowpark_artifact_absolute_path(project_root, snowpark)
+    log.info("Building package using sources from: %s", absolute_source_path)
 
     snowpark_package(
-        source=source,
+        source=absolute_source_path,
         artifact_file=artifact_file,
         pypi_download=pypi_download,  # type: ignore[arg-type]
         check_anaconda_for_pypi_deps=check_anaconda_for_pypi_deps,
